@@ -64,13 +64,50 @@ val ColorWarmYellowDark = Color(0xFFF59E0B)// Naranja/Amarillo oscuro
 val AlertBgColor = Color(0xFFF1F5F9)      // Fondo para la tarjeta de alerta
 
 // ==========================================
+// MODELO Y DATOS DE HISTORIAL COMPARTIDOS
+// ==========================================
+data class HourlyReading(
+    val time: String,
+    val temperature: Float,
+    val humidity: Int
+)
+
+// Lista sincronizada de 24 horas (Relación física real: mayor temperatura = menor humedad relativa)
+val sampleHourlyReadings = listOf(
+    HourlyReading("14:00", 24.5f, 55),
+    HourlyReading("13:00", 25.1f, 45),
+    HourlyReading("12:00", 24.8f, 42),
+    HourlyReading("11:00", 23.8f, 50),
+    HourlyReading("10:00", 22.5f, 58),
+    HourlyReading("09:00", 21.0f, 62),
+    HourlyReading("08:00", 19.5f, 68),
+    HourlyReading("07:00", 18.2f, 74),
+    HourlyReading("06:00", 16.8f, 78),
+    HourlyReading("05:00", 15.5f, 82),
+    HourlyReading("04:00", 14.2f, 85),
+    HourlyReading("03:00", 14.8f, 84),
+    HourlyReading("02:00", 15.0f, 80),
+    HourlyReading("01:00", 15.8f, 76),
+    HourlyReading("00:00", 16.5f, 72),
+    HourlyReading("23:00", 17.2f, 68),
+    HourlyReading("22:00", 18.0f, 65),
+    HourlyReading("21:00", 19.2f, 61),
+    HourlyReading("20:00", 20.1f, 58),
+    HourlyReading("19:00", 21.3f, 56),
+    HourlyReading("18:00", 22.0f, 54),
+    HourlyReading("17:00", 23.1f, 51),
+    HourlyReading("16:00", 24.0f, 49),
+    HourlyReading("15:00", 24.8f, 47)
+)
+
+// ==========================================
 // PANTALLA PRINCIPAL CON NAVEGACIÓN Y ESTADO
 // ==========================================
 @Composable
 fun DashboardEstabloScreen() {
     var currentScreen by remember { mutableStateOf("dashboard") }
     
-    // Estado compartido de variables IoT
+    // Estado compartido de variables IoT (Sincronizado con la lectura de las 14:00)
     var temperature by remember { mutableFloatStateOf(24.5f) }
     var humidity by remember { mutableIntStateOf(55) }
     var lightLevel by remember { mutableIntStateOf(75) }
@@ -89,11 +126,16 @@ fun DashboardEstabloScreen() {
             onVentilationChange = { ventilationOpen = it },
             lightIntensity = lightIntensity,
             onLightIntensityChange = { lightIntensity = it },
-            onNavigateToTempDetail = { currentScreen = "temp_detail" }
+            onNavigateToTempDetail = { currentScreen = "temp_detail" },
+            onNavigateToHumedadDetail = { currentScreen = "humedad_detail" }
         )
         "temp_detail" -> TemperaturaDetailScreen(
             currentTemperature = temperature,
             onBack = { currentScreen = "dashboard" }
+        )
+        "humedad_detail" -> HumedadDetailScreen(
+            currentHumidity = humidity,
+            onNavigateBack = { currentScreen = "dashboard" }
         )
     }
 }
@@ -108,7 +150,8 @@ fun MainDashboardContent(
     onVentilationChange: (Boolean) -> Unit,
     lightIntensity: Float,
     onLightIntensityChange: (Float) -> Unit,
-    onNavigateToTempDetail: () -> Unit
+    onNavigateToTempDetail: () -> Unit,
+    onNavigateToHumedadDetail: () -> Unit
 ) {
     val scrollState = rememberScrollState()
 
@@ -154,10 +197,11 @@ fun MainDashboardContent(
                     modifier = Modifier.weight(1f),
                     title = "Humedad",
                     value = "$humidity %",
-                    status = "Óptima",
-                    statusColor = ColorMeadowGreenDark,
+                    status = if (humidity in 40..70) "Óptima" else if (humidity < 40) "Seca" else "Excesiva",
+                    statusColor = if (humidity in 40..70) ColorMeadowGreenDark else ColorWarmYellowDark,
                     iconEmoji = "💧",
-                    iconTint = ColorSkyBlue
+                    iconTint = ColorSkyBlue,
+                    onClick = onNavigateToHumedadDetail
                 )
             }
 
@@ -223,35 +267,6 @@ fun TemperaturaDetailScreen(
     currentTemperature: Float = 24.5f,
     onBack: () -> Unit = {}
 ) {
-    val historyData = remember {
-        listOf(
-            "14:00" to 24.5f,
-            "13:00" to 24.1f,
-            "12:00" to 23.8f,
-            "11:00" to 22.5f,
-            "10:00" to 21.0f,
-            "09:00" to 19.5f,
-            "08:00" to 18.2f,
-            "07:00" to 16.8f,
-            "06:00" to 15.5f,
-            "05:00" to 14.8f,
-            "04:00" to 14.2f,
-            "03:00" to 15.0f,
-            "02:00" to 15.8f,
-            "01:00" to 16.5f,
-            "00:00" to 17.2f,
-            "23:00" to 18.0f,
-            "22:00" to 19.2f,
-            "21:00" to 20.1f,
-            "20:00" to 21.3f,
-            "19:00" to 22.0f,
-            "18:00" to 23.1f,
-            "17:00" to 24.0f,
-            "16:00" to 24.8f,
-            "15:00" to 25.1f
-        )
-    }
-
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = BgColor
@@ -268,6 +283,7 @@ fun TemperaturaDetailScreen(
                 DetailTopBar(title = "Registro de Temperatura", onBack = onBack)
             }
 
+            // MÉTRICA PRINCIPAL
             item {
                 MainMetricCard(
                     value = "$currentTemperature °C",
@@ -276,6 +292,7 @@ fun TemperaturaDetailScreen(
                 )
             }
 
+            // DIAGNÓSTICO DE RIESGOS BIOCLIMÁTICOS (BOVINOS)
             item {
                 RiskDiagnosticCard(temperature = currentTemperature)
             }
@@ -290,8 +307,9 @@ fun TemperaturaDetailScreen(
                 )
             }
 
-            items(historyData) { (time, temp) ->
-                TimelineItemRow(time = time, temperature = temp)
+            // HISTORIAL TIMELINE (Usando los datos de prueba compartidos)
+            items(sampleHourlyReadings) { reading ->
+                TimelineItemRow(time = reading.time, temperature = reading.temperature)
             }
 
             item {
@@ -300,6 +318,10 @@ fun TemperaturaDetailScreen(
         }
     }
 }
+
+// ==========================================
+// COMPONENTES REUTILIZABLES
+// ==========================================
 
 @Composable
 fun TopBar() {
