@@ -1,6 +1,5 @@
 package com.example.cuidadovacas.screens
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -39,17 +38,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.cuidadovacas.components.SensorCard
 import com.example.cuidadovacas.ui.theme.CuidadoVacasTheme
 import kotlin.math.roundToInt
 
@@ -79,7 +73,7 @@ data class HourlyReading(
     val humidity: Int
 )
 
-// Lista sincronizada de 24 horas (Relación física real: mayor temperatura = menor humedad relativa)
+// Lista sincronizada de 24 horas
 val sampleHourlyReadings = listOf(
     HourlyReading("14:00", 24.5f, 55),
     HourlyReading("13:00", 25.1f, 45),
@@ -147,7 +141,7 @@ fun DashboardEstabloScreen() {
 }
 
 // ==========================================
-// VISTA PRINCIPAL UNIFICADA (PAGE 0 DEL PAGER)
+// VISTA PRINCIPAL DASHBOARD REFACTORIZADA
 // ==========================================
 @Composable
 fun MainDashboardCombinedContent(
@@ -163,14 +157,7 @@ fun MainDashboardCombinedContent(
     onNavigateToHumedadDetail: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
-
-    // ====================================================================
-    // NOTA DE INTEGRACIÓN DE DATOS EN TIEMPO REAL / REPOSITORY:
-    // Para conectar esta vista con Firebase/MQTT o un ViewModel en producción,
-    // sustituye los valores estáticos por un flujo de estado (StateFlow/LiveData):
-    // val realTimeReadings by viewModel.hourlyReadings.collectAsState()
-    // La lista 'sampleHourlyReadings' se actualizará automáticamente cada hora.
-    // ====================================================================
+    val last12Readings = remember { sampleHourlyReadings.take(12) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -187,7 +174,7 @@ fun MainDashboardCombinedContent(
             Spacer(modifier = Modifier.height(4.dp))
             TopBar()
             
-            // 1. RESUMEN SUPERIOR COMPACTO (4 MINI TARJETAS EN FILA)
+            // 1. RESUMEN SUPERIOR COMPACTO (4 MINI TARJETAS)
             Text(
                 text = "Resumen de Sensores",
                 color = MaterialTheme.colorScheme.onBackground,
@@ -232,9 +219,12 @@ fun MainDashboardCombinedContent(
                 )
             }
 
-            // 2. EL PROTAGONISTA: GRÁFICO DE 24 HORAS EN CANVAS
-            Graph24HoursHeroCard()
+            // 2. NUEVAS TABLAS EN LUGAR DE LA GRÁFICA COMBINADA (ÚLTIMAS 12 HORAS)
+            TemperatureTable12HoursCard(readings = last12Readings)
 
+            HumidityTable12HoursCard(readings = last12Readings)
+
+            // 3. PANEL DE CONTROL DE ACTUADORES
             Text(
                 text = "Panel de Control (Actuadores)",
                 color = MaterialTheme.colorScheme.onBackground,
@@ -243,7 +233,6 @@ fun MainDashboardCombinedContent(
                 modifier = Modifier.padding(top = 8.dp, bottom = 0.dp)
             )
 
-            // 3. PANEL DE CONTROL (VENTILACIÓN E ILUMINACIÓN)
             ActuatorSwitchCard(
                 title = "Ventilación / Ventanas",
                 isActive = ventilationOpen,
@@ -264,6 +253,269 @@ fun MainDashboardCombinedContent(
             Spacer(modifier = Modifier.height(4.dp))
             AlertCard(message = "⚠️ 14:30 - Ventilación activada automáticamente (Temp > 24°C)")
             Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+// ==========================================
+// TABLA 1: REGISTRO DE TEMPERATURA (12 HRS)
+// ==========================================
+@Composable
+fun TemperatureTable12HoursCard(readings: List<HourlyReading>) {
+    var selectedReading by remember { mutableStateOf<HourlyReading?>(readings.firstOrNull()) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Registro de Temperatura",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Últimas 12 Horas • Toque para detalles",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(
+                    text = "🌡️ °C",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Tooltip flotante interactivo
+            selectedReading?.let { reading ->
+                val (statusText, statusColor) = when {
+                    reading.temperature > 24.0f -> "Riesgo de Estrés Calórico" to Color(0xFFEF4444)
+                    reading.temperature > 22.0f -> "Temperatura Elevada" to Color(0xFFF59E0B)
+                    else -> "Zona de Confort" to Color(0xFF10B981)
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(statusColor.copy(alpha = 0.15f))
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "📍 ${reading.time} hrs • $statusText",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "${reading.temperature} °C",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = statusColor
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // Filas de la tabla (12 horas)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                readings.forEach { reading ->
+                    val isSelected = (selectedReading?.time == reading.time)
+                    val statusDotColor = when {
+                        reading.temperature > 24.0f -> Color(0xFFEF4444) // Rojo (Estrés)
+                        reading.temperature > 22.0f -> Color(0xFFF59E0B) // Ámbar
+                        else -> Color(0xFF10B981)                       // Verde (Confort)
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            )
+                            .clickable { selectedReading = reading }
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(statusDotColor)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "${reading.time} hrs",
+                                fontSize = 14.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        Text(
+                            text = "${reading.temperature} °C",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ==========================================
+// TABLA 2: REGISTRO DE HUMEDAD (12 HRS)
+// ==========================================
+@Composable
+fun HumidityTable12HoursCard(readings: List<HourlyReading>) {
+    var selectedReading by remember { mutableStateOf<HourlyReading?>(readings.firstOrNull()) }
+    val humidityBlue = Color(0xFF0284C7)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Registro de Humedad",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Últimas 12 Horas • Toque para detalles",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(
+                    text = "💧 %",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = humidityBlue
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Tooltip flotante interactivo
+            selectedReading?.let { reading ->
+                val (statusText, statusColor) = when {
+                    reading.humidity < 40 -> "Ambiente Seco (<40%)" to Color(0xFFF59E0B)
+                    reading.humidity > 70 -> "Humedad Excesiva (>70%)" to Color(0xFFEF4444)
+                    else -> "Zona de Confort (40-70%)" to Color(0xFF10B981)
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(statusColor.copy(alpha = 0.15f))
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "📍 ${reading.time} hrs • $statusText",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "${reading.humidity} %",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = statusColor
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // Filas de la tabla (12 horas)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                readings.forEach { reading ->
+                    val isSelected = (selectedReading?.time == reading.time)
+                    val statusDotColor = when {
+                        reading.humidity < 40 -> Color(0xFFF59E0B) // Ámbar
+                        reading.humidity > 70 -> Color(0xFFEF4444) // Rojo
+                        else -> Color(0xFF10B981)                  // Verde
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                if (isSelected) humidityBlue.copy(alpha = 0.15f)
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            )
+                            .clickable { selectedReading = reading }
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(statusDotColor)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "${reading.time} hrs",
+                                fontSize = 14.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        Text(
+                            text = "${reading.humidity} %",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -314,190 +566,6 @@ fun MiniSensorCard(
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
-    }
-}
-
-@Composable
-fun Graph24HoursHeroCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Monitoreo Bioclimático 24 Horas",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Tendencia de Temperatura vs Humedad",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = "🌡️ Temp",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "💧 Hum",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.tertiary
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            val primaryColor = MaterialTheme.colorScheme.primary
-            val tertiaryColor = MaterialTheme.colorScheme.tertiary
-            val gridColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-
-            Canvas(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-            ) {
-                val width = size.width
-                val height = size.height
-
-                // Líneas horizontales
-                val lines = 4
-                for (i in 0..lines) {
-                    val y = height * (i.toFloat() / lines)
-                    drawLine(
-                        color = gridColor,
-                        start = Offset(0f, y),
-                        end = Offset(width, y),
-                        strokeWidth = 1.dp.toPx(),
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
-                    )
-                }
-
-                // Curva de Temperatura
-                val tempPoints = listOf(
-                    Offset(0f, height * 0.65f),
-                    Offset(width * 0.2f, height * 0.8f),
-                    Offset(width * 0.4f, height * 0.55f),
-                    Offset(width * 0.6f, height * 0.25f),
-                    Offset(width * 0.8f, height * 0.35f),
-                    Offset(width, height * 0.4f)
-                )
-
-                val tempPath = Path().apply {
-                    moveTo(tempPoints[0].x, tempPoints[0].y)
-                    for (i in 0 until tempPoints.size - 1) {
-                        val p1 = tempPoints[i]
-                        val p2 = tempPoints[i + 1]
-                        cubicTo(
-                            (p1.x + p2.x) / 2, p1.y,
-                            (p1.x + p2.x) / 2, p2.y,
-                            p2.x, p2.y
-                        )
-                    }
-                }
-
-                val tempFillPath = Path().apply {
-                    addPath(tempPath)
-                    lineTo(width, height)
-                    lineTo(0f, height)
-                    close()
-                }
-
-                drawPath(
-                    path = tempFillPath,
-                    brush = Brush.verticalGradient(
-                        colors = listOf(primaryColor.copy(alpha = 0.25f), Color.Transparent)
-                    )
-                )
-                drawPath(
-                    path = tempPath,
-                    color = primaryColor,
-                    style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round)
-                )
-
-                // Curva de Humedad
-                val humPoints = listOf(
-                    Offset(0f, height * 0.3f),
-                    Offset(width * 0.2f, height * 0.15f),
-                    Offset(width * 0.4f, height * 0.4f),
-                    Offset(width * 0.6f, height * 0.75f),
-                    Offset(width * 0.8f, height * 0.6f),
-                    Offset(width, height * 0.55f)
-                )
-
-                val humPath = Path().apply {
-                    moveTo(humPoints[0].x, humPoints[0].y)
-                    for (i in 0 until humPoints.size - 1) {
-                        val p1 = humPoints[i]
-                        val p2 = humPoints[i + 1]
-                        cubicTo(
-                            (p1.x + p2.x) / 2, p1.y,
-                            (p1.x + p2.x) / 2, p2.y,
-                            p2.x, p2.y
-                        )
-                    }
-                }
-
-                val humFillPath = Path().apply {
-                    addPath(humPath)
-                    lineTo(width, height)
-                    lineTo(0f, height)
-                    close()
-                }
-
-                drawPath(
-                    path = humFillPath,
-                    brush = Brush.verticalGradient(
-                        colors = listOf(tertiaryColor.copy(alpha = 0.2f), Color.Transparent)
-                    )
-                )
-                drawPath(
-                    path = humPath,
-                    color = tertiaryColor,
-                    style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round)
-                )
-
-                // Puntos destacados
-                tempPoints.forEach { pt ->
-                    drawCircle(color = primaryColor, radius = 5.dp.toPx(), center = pt)
-                }
-                humPoints.forEach { pt ->
-                    drawCircle(color = tertiaryColor, radius = 5.dp.toPx(), center = pt)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                listOf("00:00", "05:00", "10:00", "15:00", "20:00", "Ahora").forEach { hour ->
-                    Text(
-                        text = hour,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
         }
     }
 }
@@ -558,6 +626,10 @@ fun TemperaturaDetailScreen(
         }
     }
 }
+
+// ==========================================
+// COMPONENTES REUTILIZABLES
+// ==========================================
 
 @Composable
 fun TopBar() {
@@ -678,22 +750,22 @@ fun MainMetricCard(value: String, label: String, iconEmoji: String) {
 
 @Composable
 fun RiskDiagnosticCard(temperature: Float) {
-    val (bgColor, textColor, titleText, descText) = when {
+    val (bgAlphaColor, textColor, titleText, descText) = when {
         temperature > 24.0f -> Quadruple(
-            Color(0xFFFFF7ED),
-            Color(0xFFC2410C),
+            Color(0xFFEF4444),
+            Color(0xFFDC2626),
             "⚠️ Riesgo de Estrés Calórico",
             "Disminución en consumo de alimento y producción de leche. Requiere ventilación."
         )
         temperature < 5.0f -> Quadruple(
-            Color(0xFFEFF6FF),
-            Color(0xFF1D4ED8),
+            Color(0xFF3B82F6),
+            Color(0xFF2563EB),
             "❄️ Riesgo de Estrés por Frío",
             "Aumento de requerimiento energético. Cuidar terneros."
         )
         else -> Quadruple(
-            Color(0xFFECFDF5),
-            Color(0xFF047857),
+            Color(0xFF10B981),
+            Color(0xFF059669),
             "✅ Zona Térmica de Confort",
             "Condiciones óptimas para el ganado bovino."
         )
@@ -702,7 +774,7 @@ fun RiskDiagnosticCard(temperature: Float) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = bgColor),
+        colors = CardDefaults.cardColors(containerColor = bgAlphaColor.copy(alpha = 0.15f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
@@ -717,7 +789,7 @@ fun RiskDiagnosticCard(temperature: Float) {
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = descText,
-                color = TextColorMain,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 lineHeight = 18.sp
@@ -942,8 +1014,16 @@ fun AlertCard(message: String) {
 
 @Preview(showBackground = true)
 @Composable
-fun DashboardEstabloScreenPreview() {
-    CuidadoVacasTheme {
+fun DashboardEstabloScreenPreviewLight() {
+    CuidadoVacasTheme(darkTheme = false) {
+        DashboardEstabloScreen()
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun DashboardEstabloScreenPreviewDark() {
+    CuidadoVacasTheme(darkTheme = true) {
         DashboardEstabloScreen()
     }
 }

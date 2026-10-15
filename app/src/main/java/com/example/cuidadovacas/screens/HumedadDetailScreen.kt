@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,7 +40,7 @@ fun HumedadDetailScreen(
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = BgColor
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
@@ -61,7 +62,7 @@ fun HumedadDetailScreen(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(CardColor)
+                            .background(MaterialTheme.colorScheme.surface)
                             .clickable { onNavigateBack() },
                         contentAlignment = Alignment.Center
                     ) {
@@ -72,7 +73,7 @@ fun HumedadDetailScreen(
                         text = "Registro de Humedad",
                         fontSize = 22.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = TextColorMain
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
             }
@@ -82,7 +83,7 @@ fun HumedadDetailScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = CardColor),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Row(
@@ -95,14 +96,14 @@ fun HumedadDetailScreen(
                         Column {
                             Text(
                                 text = "Humedad Relativa",
-                                color = TextColorSec,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = "$currentHumidity %",
-                                color = TextColorMain,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 48.sp,
                                 fontWeight = FontWeight.Black
                             )
@@ -111,7 +112,7 @@ fun HumedadDetailScreen(
                             modifier = Modifier
                                 .size(64.dp)
                                 .clip(CircleShape)
-                                .background(ColorSkyBlueDark.copy(alpha = 0.15f)),
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(text = "💧", fontSize = 32.sp)
@@ -128,7 +129,7 @@ fun HumedadDetailScreen(
             item {
                 Text(
                     text = "Registro de las últimas 24 horas",
-                    color = TextColorMain,
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
                     modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
@@ -140,7 +141,7 @@ fun HumedadDetailScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = CardColor),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Row(
@@ -168,7 +169,7 @@ fun HumedadDetailScreen(
                                 text = "${reading.time} hrs",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = TextColorMain
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
 
@@ -176,7 +177,7 @@ fun HumedadDetailScreen(
                             text = "${reading.humidity} %",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = TextColorMain
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -191,22 +192,22 @@ fun HumedadDetailScreen(
 
 @Composable
 fun HumidityRiskDiagnosticCard(humidity: Int) {
-    val (bgColor, textColor, titleText, descText) = when {
+    val (bgAlphaColor, textColor, titleText, descText) = when {
         humidity < 40 -> HumidityDiagnosticData(
-            Color(0xFFFFFBEB),
-            Color(0xFFB45309),
+            Color(0xFFF59E0B),
+            Color(0xFFD97706),
             "⚠️ Ambiente Seco (< 40%)",
             "Humedad baja. Riesgo de polvo en suspensión e irritación de vías respiratorias."
         )
         humidity > 70 -> HumidityDiagnosticData(
-            Color(0xFFFEF2F2),
-            Color(0xFFB91C1C),
+            Color(0xFFEF4444),
+            Color(0xFFDC2626),
             "🚨 Riesgo Alto (> 70%)",
             "Humedad excesiva. Dificulta la disipación de calor por jadeo y favorece proliferación de bacterias ambientales (mastitis)."
         )
         else -> HumidityDiagnosticData(
-            Color(0xFFECFDF5),
-            Color(0xFF047857),
+            Color(0xFF10B981),
+            Color(0xFF059669),
             "✅ Zona de Confort (40% - 70%)",
             "Condiciones óptimas para la termorregulación y salud respiratoria."
         )
@@ -215,7 +216,7 @@ fun HumidityRiskDiagnosticCard(humidity: Int) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = bgColor),
+        colors = CardDefaults.cardColors(containerColor = bgAlphaColor.copy(alpha = 0.15f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
@@ -230,7 +231,7 @@ fun HumidityRiskDiagnosticCard(humidity: Int) {
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = descText,
-                color = TextColorMain,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 lineHeight = 18.sp
@@ -240,16 +241,27 @@ fun HumidityRiskDiagnosticCard(humidity: Int) {
 }
 
 private data class HumidityDiagnosticData(
-    val bgColor: Color,
+    val bgAlphaColor: Color,
     val textColor: Color,
     val titleText: String,
     val descText: String
 )
 
-@Preview(showBackground = true, backgroundColor = 0xFFF8FAFC)
+@Preview(showBackground = true)
 @Composable
-fun HumedadDetailScreenPreview() {
-    CuidadoVacasTheme {
+fun HumedadDetailScreenPreviewLight() {
+    CuidadoVacasTheme(darkTheme = false) {
+        HumedadDetailScreen(
+            currentHumidity = 55,
+            onNavigateBack = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun HumedadDetailScreenPreviewDark() {
+    CuidadoVacasTheme(darkTheme = true) {
         HumedadDetailScreen(
             currentHumidity = 55,
             onNavigateBack = {}
