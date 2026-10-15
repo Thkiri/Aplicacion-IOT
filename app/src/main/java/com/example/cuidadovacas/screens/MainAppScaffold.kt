@@ -40,6 +40,7 @@ import kotlinx.coroutines.launch
 fun MainAppScaffold() {
     val systemDark = isSystemInDarkTheme()
     var isDarkMode by remember { mutableStateOf(systemDark) }
+    var isLoggedIn by remember { mutableStateOf(false) }
 
     // PagerState para gestos de deslizamiento (3 páginas: 0 = Dashboard, 1 = Historial, 2 = Ajustes)
     val pagerState = rememberPagerState(pageCount = { 3 })
@@ -50,90 +51,99 @@ fun MainAppScaffold() {
     var lightIntensity by remember { mutableFloatStateOf(60f) }
 
     CuidadoVacasTheme(darkTheme = isDarkMode) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Establo Smart",
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = "🐮", fontSize = 22.sp)
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { isDarkMode = !isDarkMode }) {
-                            Text(
-                                text = if (isDarkMode) "☀️" else "🌙",
-                                fontSize = 22.sp
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background
+        if (!isLoggedIn) {
+            LoginScreen(
+                onLoginSuccess = { isLoggedIn = true },
+                isDarkMode = isDarkMode,
+                onToggleDarkMode = { isDarkMode = it }
+            )
+        } else {
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "Establo Smart",
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = "🐮", fontSize = 22.sp)
+                            }
+                        },
+                        actions = {
+                            IconButton(onClick = { isDarkMode = !isDarkMode }) {
+                                Text(
+                                    text = if (isDarkMode) "☀️" else "🌙",
+                                    fontSize = 22.sp
+                                )
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = MaterialTheme.colorScheme.background
+                        )
                     )
-                )
-            },
-            bottomBar = {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 8.dp
-                ) {
-                    val items = listOf(
-                        Triple("Dashboard", "📊", 0),
-                        Triple("Historial", "📈", 1),
-                        Triple("Ajustes", "⚙️", 2)
-                    )
+                },
+                bottomBar = {
+                    NavigationBar(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 8.dp
+                    ) {
+                        val items = listOf(
+                            Triple("Dashboard", "📊", 0),
+                            Triple("Historial", "📈", 1),
+                            Triple("Ajustes", "⚙️", 2)
+                        )
 
-                    items.forEach { (title, iconEmoji, index) ->
-                        val isSelected = (pagerState.currentPage == index)
-                        NavigationBarItem(
-                            selected = isSelected,
-                            onClick = {
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(index)
-                                }
-                            },
-                            icon = { Text(text = iconEmoji, fontSize = 20.sp) },
-                            label = { Text(title) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        items.forEach { (title, iconEmoji, index) ->
+                            val isSelected = (pagerState.currentPage == index)
+                            NavigationBarItem(
+                                selected = isSelected,
+                                onClick = {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(index)
+                                    }
+                                },
+                                icon = { Text(text = iconEmoji, fontSize = 20.sp) },
+                                label = { Text(title) },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                                    indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             )
-                        )
+                        }
                     }
-                }
-            },
-            containerColor = MaterialTheme.colorScheme.background
-        ) { innerPadding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize()
-                ) { page ->
-                    when (page) {
-                        0 -> DashboardEstabloScreen()
-                        1 -> HistorialScreen(
-                            ventilationOpen = ventilationOpen,
-                            onVentilationChange = { ventilationOpen = it },
-                            lightIntensity = lightIntensity,
-                            onLightIntensityChange = { lightIntensity = it }
-                        )
-                        2 -> AjustesScreen(
-                            isDarkMode = isDarkMode,
-                            onToggleDarkMode = { isDarkMode = it }
-                        )
+                },
+                containerColor = MaterialTheme.colorScheme.background
+            ) { innerPadding ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                ) {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize()
+                    ) { page ->
+                        when (page) {
+                            0 -> DashboardEstabloScreen()
+                            1 -> HistorialScreen(
+                                ventilationOpen = ventilationOpen,
+                                onVentilationChange = { ventilationOpen = it },
+                                lightIntensity = lightIntensity,
+                                onLightIntensityChange = { lightIntensity = it }
+                            )
+                            2 -> AjustesScreen(
+                                isDarkMode = isDarkMode,
+                                onToggleDarkMode = { isDarkMode = it },
+                                onLogout = { isLoggedIn = false }
+                            )
+                        }
                     }
                 }
             }
