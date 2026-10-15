@@ -60,12 +60,7 @@ data class ChartPoint(
 )
 
 @Composable
-fun HistorialScreen(
-    ventilationOpen: Boolean = false,
-    onVentilationChange: (Boolean) -> Unit = {},
-    lightIntensity: Float = 60f,
-    onLightIntensityChange: (Float) -> Unit = {}
-) {
+fun HistorialScreen() {
     var selectedFilter by remember { mutableStateOf("Últimas 12h") }
     val scrollState = rememberScrollState()
 
@@ -124,31 +119,6 @@ fun HistorialScreen(
             // 3. GRÁFICA INFERIOR INTERACTIVA: HUMEDAD (12 PUNTOS)
             HumidityChartCard12H(filterName = selectedFilter)
 
-            Text(
-                text = "Panel de Control",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-
-            // 4. PANEL DE CONTROL (ACTUADORES)
-            ActuatorSwitchCard(
-                title = "Ventilación / Ventanas",
-                isActive = ventilationOpen,
-                onCheckedChange = onVentilationChange,
-                iconEmoji = "🌬️",
-                activeColor = MaterialTheme.colorScheme.primary
-            )
-
-            ActuatorSliderCard(
-                title = "Iluminación del Galpón",
-                value = lightIntensity,
-                onValueChange = onLightIntensityChange,
-                iconEmoji = "💡",
-                accentColor = MaterialTheme.colorScheme.tertiary
-            )
-
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
@@ -159,7 +129,6 @@ fun HistorialScreen(
 // ==========================================
 @Composable
 fun TemperatureChartCard12H(filterName: String) {
-    // 12 Nodos/Puntos de datos seleccionables (últimas 12 horas)
     val points = remember {
         listOf(
             ChartPoint("03:00 hrs", 14.8f, "°C"),
@@ -177,7 +146,7 @@ fun TemperatureChartCard12H(filterName: String) {
         )
     }
 
-    var selectedIndex by remember { mutableStateOf<Int?>(11) } // Seleccionado por defecto: la última hora
+    var selectedIndex by remember { mutableStateOf<Int?>(11) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -214,7 +183,6 @@ fun TemperatureChartCard12H(filterName: String) {
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // TOOLTIP FLOTANTE ANALÍTICO AL SELECCIONAR PUNTO
             val activePoint = selectedIndex?.let { points.getOrNull(it) }
             if (activePoint != null) {
                 val activeColor = getTempColor(activePoint.value)
@@ -259,7 +227,6 @@ fun TemperatureChartCard12H(filterName: String) {
 
             val gridColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
 
-            // CANVAS CON TAP INTERACTIVO Y CROSSHAIR
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -276,7 +243,6 @@ fun TemperatureChartCard12H(filterName: String) {
                 val width = size.width
                 val height = size.height
 
-                // Cuadrícula horizontal
                 val lines = 3
                 for (i in 0..lines) {
                     val y = height * (i.toFloat() / lines)
@@ -289,7 +255,6 @@ fun TemperatureChartCard12H(filterName: String) {
                     )
                 }
 
-                // Cálculo de coordenadas (10°C a 30°C)
                 val minVal = 10f
                 val maxVal = 30f
                 val calculatedPoints = points.mapIndexed { index, pt ->
@@ -308,7 +273,6 @@ fun TemperatureChartCard12H(filterName: String) {
                     }
                 }
 
-                // Fondo degradado
                 val fillPath = Path().apply {
                     addPath(path)
                     lineTo(width, height)
@@ -323,14 +287,12 @@ fun TemperatureChartCard12H(filterName: String) {
                     )
                 )
 
-                // Trazo principal
                 drawPath(
                     path = path,
                     color = Color(0xFFF97316),
                     style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round)
                 )
 
-                // LÍNEA GUÍA VERTICAL (CROSSHAIR) AL EJE X
                 selectedIndex?.let { idx ->
                     if (idx in calculatedPoints.indices) {
                         val selPt = calculatedPoints[idx]
@@ -344,14 +306,12 @@ fun TemperatureChartCard12H(filterName: String) {
                     }
                 }
 
-                // DIBUJAR PUNTOS Y NODOS CON RESALTADO
                 calculatedPoints.forEachIndexed { idx, pt ->
                     val ptVal = points[idx].value
                     val ptColor = getTempColor(ptVal)
                     val isSel = (idx == selectedIndex)
 
                     if (isSel) {
-                        // Halo ilumando y agrandado
                         drawCircle(color = ptColor.copy(alpha = 0.35f), radius = 12.dp.toPx(), center = pt)
                         drawCircle(color = ptColor, radius = 7.dp.toPx(), center = pt)
                         drawCircle(color = Color.White, radius = 3.5.dp.toPx(), center = pt)
@@ -363,7 +323,6 @@ fun TemperatureChartCard12H(filterName: String) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ETIQUETAS DE HORAS EJE X
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -389,7 +348,6 @@ fun TemperatureChartCard12H(filterName: String) {
 // ==========================================
 @Composable
 fun HumidityChartCard12H(filterName: String) {
-    // 12 Nodos/Puntos de datos seleccionables (últimas 12 horas)
     val points = remember {
         listOf(
             ChartPoint("03:00 hrs", 84f, "%"),
@@ -407,7 +365,7 @@ fun HumidityChartCard12H(filterName: String) {
         )
     }
 
-    var selectedIndex by remember { mutableStateOf<Int?>(11) } // Seleccionado por defecto: la última hora
+    var selectedIndex by remember { mutableStateOf<Int?>(11) }
     val humidityBlue = Color(0xFF0284C7)
 
     Card(
@@ -445,7 +403,6 @@ fun HumidityChartCard12H(filterName: String) {
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // TOOLTIP FLOTANTE ANALÍTICO AL SELECCIONAR PUNTO
             val activePoint = selectedIndex?.let { points.getOrNull(it) }
             if (activePoint != null) {
                 Card(
@@ -489,7 +446,6 @@ fun HumidityChartCard12H(filterName: String) {
 
             val gridColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
 
-            // CANVAS CON TAP INTERACTIVO Y CROSSHAIR
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -506,7 +462,6 @@ fun HumidityChartCard12H(filterName: String) {
                 val width = size.width
                 val height = size.height
 
-                // Cuadrícula
                 val lines = 3
                 for (i in 0..lines) {
                     val y = height * (i.toFloat() / lines)
@@ -519,7 +474,6 @@ fun HumidityChartCard12H(filterName: String) {
                     )
                 }
 
-                // Cálculo de coordenadas (30% a 100%)
                 val minVal = 30f
                 val maxVal = 100f
                 val calculatedPoints = points.mapIndexed { index, pt ->
@@ -538,7 +492,6 @@ fun HumidityChartCard12H(filterName: String) {
                     }
                 }
 
-                // Fondo degradado azul
                 val fillPath = Path().apply {
                     addPath(path)
                     lineTo(width, height)
@@ -553,14 +506,12 @@ fun HumidityChartCard12H(filterName: String) {
                     )
                 )
 
-                // Trazo principal
                 drawPath(
                     path = path,
                     color = humidityBlue,
                     style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round)
                 )
 
-                // LÍNEA GUÍA VERTICAL (CROSSHAIR) AL EJE X
                 selectedIndex?.let { idx ->
                     if (idx in calculatedPoints.indices) {
                         val selPt = calculatedPoints[idx]
@@ -574,7 +525,6 @@ fun HumidityChartCard12H(filterName: String) {
                     }
                 }
 
-                // DIBUJAR PUNTOS Y NODOS CON RESALTADO
                 calculatedPoints.forEachIndexed { idx, pt ->
                     val isSel = (idx == selectedIndex)
                     if (isSel) {
@@ -589,7 +539,6 @@ fun HumidityChartCard12H(filterName: String) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ETIQUETAS DE HORAS EJE X
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -612,9 +561,9 @@ fun HumidityChartCard12H(filterName: String) {
 
 private fun getTempColor(value: Float): Color {
     return when {
-        value > 24.0f -> Color(0xFFEF4444) // Rojo (Estrés calórico)
-        value > 22.0f -> Color(0xFFF59E0B) // Ámbar / Naranja
-        else -> Color(0xFF10B981)           // Verde (Confort / Óptimo)
+        value > 24.0f -> Color(0xFFEF4444)
+        value > 22.0f -> Color(0xFFF59E0B)
+        else -> Color(0xFF10B981)
     }
 }
 

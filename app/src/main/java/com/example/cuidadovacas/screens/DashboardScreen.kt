@@ -23,10 +23,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,17 +39,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.cuidadovacas.components.SensorCard
 import com.example.cuidadovacas.ui.theme.CuidadoVacasTheme
-import kotlin.math.roundToInt
 
 // ==========================================
 // PALETA DE COLORES (Inspiración Campo/Naturaleza)
 // ==========================================
 val BgColor = Color(0xFFF8FAFC)           // Blanco humo / Gris ultra claro
 val CardColor = Color(0xFFFFFFFF)         // Blanco puro
-val TextColorMain = Color(0xFF334155)     // Gris pizarra oscuro (Slate)
-val TextColorSec = Color(0xFF64748B)      // Gris medio
 
 val ColorSkyBlue = Color(0xFF38BDF8)      // Celeste Cielo
 val ColorSkyBlueDark = Color(0xFF0284C7)  // Azul Acento (Botones/Acciones)
@@ -61,8 +53,6 @@ val ColorMeadowGreen = Color(0xFF4ADE80)  // Verde Prado Suave
 val ColorMeadowGreenDark = Color(0xFF10B981) // Verde Fuerte para textos
 val ColorWarmYellow = Color(0xFFFBBF24)   // Amarillo Cálido
 val ColorWarmYellowDark = Color(0xFFF59E0B)// Naranja/Amarillo oscuro
-
-val AlertBgColor = Color(0xFFF1F5F9)      // Fondo para la tarjeta de alerta
 
 // ==========================================
 // MODELO Y DATOS DE HISTORIAL COMPARTIDOS
@@ -112,9 +102,6 @@ fun DashboardEstabloScreen() {
     var humidity by remember { mutableIntStateOf(55) }
     var lightLevel by remember { mutableIntStateOf(75) }
     var thiIndex by remember { mutableIntStateOf(68) }
-    
-    var ventilationOpen by remember { mutableStateOf(false) }
-    var lightIntensity by remember { mutableFloatStateOf(60f) }
 
     when (currentScreen) {
         "dashboard" -> MainDashboardCombinedContent(
@@ -122,10 +109,6 @@ fun DashboardEstabloScreen() {
             humidity = humidity,
             lightLevel = lightLevel,
             thiIndex = thiIndex,
-            ventilationOpen = ventilationOpen,
-            onVentilationChange = { ventilationOpen = it },
-            lightIntensity = lightIntensity,
-            onLightIntensityChange = { lightIntensity = it },
             onNavigateToTempDetail = { currentScreen = "temp_detail" },
             onNavigateToHumedadDetail = { currentScreen = "humedad_detail" }
         )
@@ -141,7 +124,7 @@ fun DashboardEstabloScreen() {
 }
 
 // ==========================================
-// VISTA PRINCIPAL DASHBOARD REFACTORIZADA
+// VISTA PRINCIPAL DASHBOARD DE MONITOREO
 // ==========================================
 @Composable
 fun MainDashboardCombinedContent(
@@ -149,10 +132,6 @@ fun MainDashboardCombinedContent(
     humidity: Int = 55,
     lightLevel: Int = 75,
     thiIndex: Int = 68,
-    ventilationOpen: Boolean = false,
-    onVentilationChange: (Boolean) -> Unit = {},
-    lightIntensity: Float = 60f,
-    onLightIntensityChange: (Float) -> Unit = {},
     onNavigateToTempDetail: () -> Unit = {},
     onNavigateToHumedadDetail: () -> Unit = {}
 ) {
@@ -219,39 +198,11 @@ fun MainDashboardCombinedContent(
                 )
             }
 
-            // 2. NUEVAS TABLAS EN LUGAR DE LA GRÁFICA COMBINADA (ÚLTIMAS 12 HORAS)
+            // 2. TABLAS DE MONITOREO (ÚLTIMAS 12 HORAS)
             TemperatureTable12HoursCard(readings = last12Readings)
 
             HumidityTable12HoursCard(readings = last12Readings)
 
-            // 3. PANEL DE CONTROL DE ACTUADORES
-            Text(
-                text = "Panel de Control (Actuadores)",
-                color = MaterialTheme.colorScheme.onBackground,
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-                modifier = Modifier.padding(top = 8.dp, bottom = 0.dp)
-            )
-
-            ActuatorSwitchCard(
-                title = "Ventilación / Ventanas",
-                isActive = ventilationOpen,
-                onCheckedChange = onVentilationChange,
-                iconEmoji = "🌬️",
-                activeColor = MaterialTheme.colorScheme.primary
-            )
-
-            ActuatorSliderCard(
-                title = "Iluminación del Galpón",
-                value = lightIntensity,
-                onValueChange = onLightIntensityChange,
-                iconEmoji = "💡",
-                accentColor = MaterialTheme.colorScheme.tertiary
-            )
-
-            // ALERTAS RECIENTES
-            Spacer(modifier = Modifier.height(4.dp))
-            AlertCard(message = "⚠️ 14:30 - Ventilación activada automáticamente (Temp > 24°C)")
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
@@ -341,9 +292,9 @@ fun TemperatureTable12HoursCard(readings: List<HourlyReading>) {
                 readings.forEach { reading ->
                     val isSelected = (selectedReading?.time == reading.time)
                     val statusDotColor = when {
-                        reading.temperature > 24.0f -> Color(0xFFEF4444) // Rojo (Estrés)
-                        reading.temperature > 22.0f -> Color(0xFFF59E0B) // Ámbar
-                        else -> Color(0xFF10B981)                       // Verde (Confort)
+                        reading.temperature > 24.0f -> Color(0xFFEF4444)
+                        reading.temperature > 22.0f -> Color(0xFFF59E0B)
+                        else -> Color(0xFF10B981)
                     }
 
                     Row(
@@ -431,7 +382,6 @@ fun HumidityTable12HoursCard(readings: List<HourlyReading>) {
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Tooltip flotante interactivo
             selectedReading?.let { reading ->
                 val (statusText, statusColor) = when {
                     reading.humidity < 40 -> "Ambiente Seco (<40%)" to Color(0xFFF59E0B)
@@ -468,14 +418,13 @@ fun HumidityTable12HoursCard(readings: List<HourlyReading>) {
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // Filas de la tabla (12 horas)
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 readings.forEach { reading ->
                     val isSelected = (selectedReading?.time == reading.time)
                     val statusDotColor = when {
-                        reading.humidity < 40 -> Color(0xFFF59E0B) // Ámbar
-                        reading.humidity > 70 -> Color(0xFFEF4444) // Rojo
-                        else -> Color(0xFF10B981)                  // Verde
+                        reading.humidity < 40 -> Color(0xFFF59E0B)
+                        reading.humidity > 70 -> Color(0xFFEF4444)
+                        else -> Color(0xFF10B981)
                     }
 
                     Row(
@@ -847,166 +796,6 @@ fun TimelineItemRow(time: String, temperature: Float) {
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-    }
-}
-
-@Composable
-fun ActuatorSwitchCard(
-    title: String,
-    isActive: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    iconEmoji: String,
-    activeColor: Color
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(CircleShape)
-                        .background(if (isActive) activeColor.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = iconEmoji, fontSize = 24.sp)
-                }
-                Column {
-                    Text(
-                        text = title,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = if (isActive) "ABIERTAS" else "CERRADAS",
-                        color = if (isActive) ColorSkyBlueDark else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                }
-            }
-            
-            Switch(
-                checked = isActive,
-                onCheckedChange = onCheckedChange,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
-                    checkedTrackColor = activeColor,
-                    uncheckedThumbColor = Color.White,
-                    uncheckedTrackColor = Color(0xFFE2E8F0),
-                    uncheckedBorderColor = Color.Transparent
-                )
-            )
-        }
-    }
-}
-
-@Composable
-fun ActuatorSliderCard(
-    title: String,
-    value: Float,
-    onValueChange: (Float) -> Unit,
-    iconEmoji: String,
-    accentColor: Color
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(CircleShape)
-                            .background(accentColor.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = iconEmoji, fontSize = 24.sp)
-                    }
-                    Column {
-                        Text(
-                            text = title,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Intensidad: ${value.roundToInt()}%",
-                            color = ColorWarmYellowDark,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                    }
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Slider(
-                value = value,
-                onValueChange = onValueChange,
-                valueRange = 0f..100f,
-                colors = SliderDefaults.colors(
-                    thumbColor = accentColor,
-                    activeTrackColor = accentColor,
-                    inactiveTrackColor = Color(0xFFE2E8F0)
-                ),
-                modifier = Modifier.padding(horizontal = 8.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun AlertCard(message: String) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = message,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium
             )
         }
     }

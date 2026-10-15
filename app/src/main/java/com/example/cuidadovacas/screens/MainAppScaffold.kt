@@ -21,7 +21,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -45,10 +44,6 @@ fun MainAppScaffold() {
     // PagerState para gestos de deslizamiento (3 páginas: 0 = Dashboard, 1 = Historial, 2 = Ajustes)
     val pagerState = rememberPagerState(pageCount = { 3 })
     val coroutineScope = rememberCoroutineScope()
-
-    // Estado compartido para los actuadores en la app
-    var ventilationOpen by remember { mutableStateOf(false) }
-    var lightIntensity by remember { mutableFloatStateOf(60f) }
 
     CuidadoVacasTheme(darkTheme = isDarkMode) {
         if (!isLoggedIn) {
@@ -132,12 +127,7 @@ fun MainAppScaffold() {
                     ) { page ->
                         when (page) {
                             0 -> DashboardEstabloScreen()
-                            1 -> HistorialScreen(
-                                ventilationOpen = ventilationOpen,
-                                onVentilationChange = { ventilationOpen = it },
-                                lightIntensity = lightIntensity,
-                                onLightIntensityChange = { lightIntensity = it }
-                            )
+                            1 -> HistorialScreen()
                             2 -> AjustesScreen(
                                 isDarkMode = isDarkMode,
                                 onToggleDarkMode = { isDarkMode = it },
